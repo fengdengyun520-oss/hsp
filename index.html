@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HSP · 情绪急救箱</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0c0c13; font-family: 'Georgia', 'Palatino', serif; color: #ddd8f5; }
+    textarea { outline: none; font-family: inherit; }
+    button { font-family: inherit; transition: opacity 0.15s; cursor: pointer; }
+    button:hover:not(:disabled) { opacity: 0.85; }
+    button:active:not(:disabled) { opacity: 0.7; }
+    @keyframes breathe { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.07);opacity:1} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+    .breathe { animation: breathe 4s ease-in-out infinite; }
+    .fadeUp { animation: fadeUp 0.6s ease; }
+    .pulse { animation: pulse 1.8s ease-in-out infinite; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(124,58,237,.3); border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const API_KEY = "YOUR_API_KEY_HERE";
+
+    const TRIGGERS = [
+      { id: "noise",         emoji: "🔊", label: "太嘈杂了" },
+      { id: "crowd",         emoji: "👥", label: "人太多" },
+      { id: "misunderstood", emoji: "💬", label: "被误解" },
+      { id: "exhausted",     emoji: "🪫", label: "完全耗尽" },
+      { id: "overwhelmed",   emoji: "🌊", label: "被淹没感" },
+      { id: "criticism",     emoji: "🗡️", label: "被批评" },
+      { id: "conflict",      emoji: "⚡", label: "发生了冲突" },
+      { id: "alone",         emoji: "🫧", label: "感到孤立" },
+    ];
+
+    const INTENSITY = [
+      { value: 1, label: "有点不对劲" },
+      { value: 2, label: "需要喘口气" },
+      { value: 3, label: "快撑不住了" },
+      { value: 4, label: "已经崩了" },
+    ];
+
+    const RECOVERY_STEPS = [
+      { id: "ground", title: "落地练习", icon: "🌿", duration: 60, instructions: ["把双脚平放在地面上，感受地板的支撑", "慢慢注意你身边的 5 样东西", "轻轻把注意力带回此刻这个房间"] },
+      { id: "body",   title: "身体扫描", icon: "✨", duration: 90, instructions: ["从头顶开始，慢慢往下感受身体", "哪里紧绷，就对那个地方轻轻呼气", "不需要改变什么，只是感受"] },
+      { id: "self",   title: "自我关怀", icon: "🌸", duration: 60, instructions: ["把手轻轻放在胸口", "默念：「这很难，但我撑过来了」", "允许自己感受任何情绪，不评判"] },
+      { id: "reframe",title: "重新看见自己", icon: "💜", duration: 45, instructions: ["高敏感不是弱点，是你比别人感受更多", "你今天经历的，对任何人来说都不容易", "你需要的休息，是完全合理的"] },
+    ];
+
+    const SYSTEM_PROMPT = `你是一位专门陪伴高敏感人群（HSP）的温柔伴侣。HSP拥有更深的感知能力、更细腻的情绪，但也因此更容易被过载。
+
+用户会告诉你：触发情境、刚刚发生的事、以及崩溃程度。
+
+你的回应严格分为两部分，用单独一行"---"分隔：
+
+第一部分（被听见）：
+- 真正回应用户描述的具体内容，不泛泛安慰
+- 承认他们感受的合理性，用温柔的方式呼应他们说的话
+- 语气像一个懂你的老朋友，不评判，不分析，不问为什么
+- 80-100字，温柔有质感
+
+---
+
+第二部分（接下来怎么做）：
+- 给出2-3个非常具体的行动建议
+- 每个建议用自然段落，不用序号
+- 要非常具体（如"找一面墙，把手掌贴上去感受温度"）
+- 结尾一句温柔收尾
+- 100-150字
+
+绝不说"我理解你的感受"。整体风格温暖、简洁、有诗意。`;
+
+    function Orb({ intensity = 2, size = 100 }) {
+      const s = size + intensity * 7;
+      return (
+        <div className="breathe" style={{
+          width: s, height: s, borderRadius: "50%", flexShrink: 0,
+          background: "radial-gradient(circle at 38% 32%, #c4b5fd 0%, #7c3aed 48%, #1e1040 100%)",
+          boxShadow: `0 0 ${28 + intensity * 12}px ${8 + intensity * 5}px rgba(124,58,237,0.3)`,
+        }} />
+      );
+    }
+
+    function TypedText({ text, speed = 16, onDone }) {
+      const [displayed, setDisplayed] = useState("");
+      const [done, setDone] = useState(false);
+      const idx = useRef(0);
+      useEffect(() => {
+        idx.current = 0; setDisplayed(""); setDone(false);
+        if (!text) return;
+        const iv = setInterval(() => {
+          idx.current++;
+          setDisplayed(text.slice(0, idx.current));
+          if (idx.current >= text.length) { clearInterval(iv); setDone(true); onDone?.(); }
+        }, speed);
+        return () => clearInterval(iv);
+      }, [text]);
+      return <span>{displayed}{!done && <span style={{ animation: "blink 1s infinite", color: "#7c3aed" }}>▌</span>}</span>;
+    }
+
+    function RecoveryStep({ step, onDone }) {
+      const [phase, setPhase] = useState("intro");
+      const [elapsed, setElapsed] = useState(0);
+      const [instrIdx, setInstrIdx] = useState(0);
+      const ref = useRef(null);
+      useEffect(() => {
+        if (phase !== "active") return;
+        ref.current = setInterval(() => {
+          setElapsed(e => {
+            const next = e + 1;
+            const perStep = Math.floor(step.duration / step.instructions.length);
+            setInstrIdx(Math.min(Math.floor(next / perStep), step.instructions.length - 1));
+            if (next >= step.duration) { clearInterval(ref.current); setPhase("done"); }
+            return next;
+          });
+        }, 1000);
+        return () => clearInterval(ref.current);
+      }, [phase]);
+      const progress = Math.min(elapsed / step.duration, 1);
+      const r = 28, circ = 2 * Math.PI * r;
+      return (
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 16, padding: 24, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <span style={{ fontSize: 22 }}>{step.icon}</span>
+            <div style={{ fontSize: 15, color: "#c4b5fd" }}>{step.title}</div>
+            {phase === "active" && (
+              <svg width="64" height="64" style={{ marginLeft: "auto" }}>
+                <circle cx="32" cy="32" r={r} fill="none" stroke="rgba(124,58,237,0.15)" strokeWidth="3"/>
+                <circle cx="32" cy="32" r={r} fill="none" stroke="#7c3aed" strokeWidth="3"
+                  strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
+                  strokeLinecap="round" transform="rotate(-90 32 32)"
+                  style={{ transition: "stroke-dashoffset 1s linear" }}/>
+                <text x="32" y="37" textAnchor="middle" fill="#a78bfa" fontSize="13" fontFamily="Georgia,serif">
+                  {step.duration - elapsed}s
+                </text>
+              </svg>
+            )}
+          </div>
+          {phase === "intro" && (<>
+            {step.instructions.map((s, i) => (
+              <div key={i} style={{ color: "#8a87aa", fontSize: 14, lineHeight: 1.9, paddingLeft: 14, borderLeft: "2px solid rgba(124,58,237,0.2)", marginBottom: 8 }}>{s}</div>
+            ))}
+            <button onClick={() => { setPhase("active"); setElapsed(0); setInstrIdx(0); }} style={{ marginTop: 12, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", color: "#c4b5fd", padding: "8px 22px", borderRadius: 20, fontSize: 13 }}>
+              开始 · {step.duration}秒
+            </button>
+          </>)}
+          {phase === "active" && <p className="fadeUp" style={{ color: "#ddd6fe", fontSize: 16, lineHeight: 1.9, margin: 0 }}>{step.instructions[instrIdx]}</p>}
+          {phase === "done" && <div className="fadeUp">
+            <p style={{ color: "#a78bfa", fontSize: 14, margin: "0 0 12px" }}>完成了 ✓</p>
+            <button onClick={onDone} style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", color: "#c4b5fd", padding: "8px 22px", borderRadius: 20, fontSize: 13 }}>继续下一步</button>
+          </div>}
+        </div>
+      );
+    }
+
+    function RecoveryJourney({ intensity }) {
+      const [idx, setIdx] = useState(0);
+      const [allDone, setAllDone] = useState(false);
+      const steps = RECOVERY_STEPS.slice(0, intensity <= 2 ? 2 : 3);
+      if (allDone) return (
+        <div className="fadeUp" style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: 16, padding: 28, textAlign: "center" }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🌙</div>
+          <p style={{ color: "#ddd6fe", fontSize: 16, lineHeight: 1.9, margin: "0 0 6px" }}>你完成了今天的恢复练习</p>
+          <p style={{ color: "#7a7898", fontSize: 13 }}>记得给自己一点时间，不必马上回去</p>
+        </div>
+      );
+      return (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            {steps.map((s, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < idx ? "#7c3aed" : i === idx ? "#a78bfa" : "rgba(255,255,255,0.1)" }} />)}
+            <span style={{ fontSize: 12, color: "#4b4870", marginLeft: 4 }}>{idx + 1} / {steps.length}</span>
+          </div>
+          <RecoveryStep step={steps[idx]} onDone={() => { if (idx < steps.length - 1) setIdx(i => i + 1); else setAllDone(true); }} />
+        </div>
+      );
+    }
+
+    function App() {
+      const [step, setStep] = useState("welcome");
+      const [triggers, setTriggers] = useState([]);
+      const [story, setStory] = useState("");
+      const [intensity, setIntensity] = useState(null);
+      const [comfort, setComfort] = useState("");
+      const [plan, setPlan] = useState("");
+      const [showPlan, setShowPlan] = useState(false);
+      const [showRecovery, setShowRecovery] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [loadingMsg, setLoadingMsg] = useState("正在倾听");
+      const [error, setError] = useState("");
+      const [logs, setLogs] = useState([]);
+      const bottomRef = useRef(null);
+      const msgIdx = useRef(0);
+      const msgs = ["正在倾听", "感受你说的话", "为你思考", "快好了"];
+
+      useEffect(() => {
+        if (!loading) return;
+        const iv = setInterval(() => { msgIdx.current = (msgIdx.current + 1) % msgs.length; setLoadingMsg(msgs[msgIdx.current]); }, 1800);
+        return () => clearInterval(iv);
+      }, [loading]);
+
+      useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [step, showPlan, showRecovery]);
+
+      const toggleTrigger = id => setTriggers(p => p.includes(id) ? p.filter(t => t !== id) : [...p, id]);
+
+      const submit = useCallback(async () => {
+        setLoading(true); setError(""); setStep("result"); setShowPlan(false); setShowRecovery(false);
+        const triggerLabels = triggers.map(id => TRIGGERS.find(t => t.id === id)?.label).join("、");
+        const intensityLabel = INTENSITY.find(i => i.value === intensity)?.label;
+        const userMsg = `触发情境：${triggerLabels}\n崩溃程度：${intensityLabel}（${intensity}/4）\n\n刚刚发生的事：${story.trim() || "（用户没有描述）"}`;
+        try {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+            body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1024, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userMsg }] }),
+          });
+          if (!res.ok) throw new Error(`${res.status}`);
+          const data = await res.json();
+          const full = data.content?.map(b => b.text || "").join("") || "";
+          const si = full.indexOf("\n---\n");
+          if (si !== -1) { setComfort(full.slice(0, si).trim()); setPlan(full.slice(si + 5).trim()); }
+          else { setComfort(full.trim()); setPlan(""); }
+          setLogs(prev => [{ time: new Date().toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), triggers: triggerLabels, intensity, story: story.trim().slice(0, 50) + (story.trim().length > 50 ? "…" : "") }, ...prev]);
+        } catch (e) { setError("连接出现问题，请检查网络后重试。错误：" + e.message); }
+        setLoading(false);
+      }, [triggers, story, intensity]);
+
+      const reset = () => { setStep("trigger"); setTriggers([]); setStory(""); setIntensity(null); setComfort(""); setPlan(""); setShowPlan(false); setShowRecovery(false); setLoading(false); setError(""); };
+
+      const C = { bg: "#0c0c13", surface: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.07)", purple: "#7c3aed", purpleLight: "#c4b5fd", text: "#ddd8f5", muted: "#7a7898", dimmer: "#4b4870" };
+      const card = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: "28px 32px", marginBottom: 16 };
+      const pBtn = (dis) => ({ background: dis ? "rgba(124,58,237,0.2)" : "linear-gradient(135deg,#7c3aed,#3b0764)", border: "none", borderRadius: 14, padding: "13px 28px", color: dis ? "#6b5a9a" : "#ede9fe", fontSize: 15, cursor: dis ? "not-allowed" : "pointer", letterSpacing: "0.04em", boxShadow: dis ? "none" : "0 4px 24px rgba(124,58,237,0.25)" });
+      const gBtn = { background: "none", border: "none", color: C.dimmer, fontSize: 13, cursor: "pointer", padding: "10px 0" };
+      const lbl = { fontSize: 11, letterSpacing: "0.2em", color: C.muted, textTransform: "uppercase", marginBottom: 16, fontStyle: "italic", display: "block" };
+
+      return (
+        <div style={{ minHeight: "100vh", background: C.bg }}>
+          {/* ambient */}
+          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: 700, height: 500, borderRadius: "50%", pointerEvents: "none", zIndex: 0, background: "radial-gradient(circle, rgba(109,40,217,0.06) 0%, transparent 70%)" }} />
+
+          {/* nav */}
+          <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,12,19,0.9)", backdropFilter: "blur(20px)", padding: "16px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 12, letterSpacing: "0.25em", color: C.dimmer }}>HSP · 情绪急救箱</div>
+            <div style={{ display: "flex", gap: 24 }}>
+              <button onClick={() => setStep("welcome")} style={gBtn}>首页</button>
+              {logs.length > 0 && <button onClick={() => setStep("logs")} style={gBtn}>我的记录（{logs.length}）</button>}
+            </div>
+          </nav>
+
+          {/* layout */}
+          <div style={{ display: "flex", minHeight: "100vh", paddingTop: 64, position: "relative", zIndex: 1 }}>
+
+            {/* left */}
+            <div style={{ width: 320, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "60px 36px", display: "flex", flexDirection: "column", alignItems: "center", position: "sticky", top: 64, height: "calc(100vh - 64px)", overflow: "hidden" }}>
+              <Orb intensity={loading ? 3 : 2} size={90} />
+              <h1 style={{ fontSize: 21, fontWeight: 400, color: "#ede9fe", lineHeight: 1.6, margin: "28px 0 10px", textAlign: "center" }}>此刻，你安全了</h1>
+              <p style={{ color: C.muted, fontSize: 13, lineHeight: 2, textAlign: "center" }}>专为高敏感人群设计<br/>告诉我发生了什么<br/>我陪你慢下来</p>
+              <div style={{ marginTop: "auto", width: "100%", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 24 }}>
+                <div style={{ fontSize: 11, color: C.dimmer, letterSpacing: "0.15em", marginBottom: 10 }}>高敏感是什么？</div>
+                <p style={{ fontSize: 12, color: "#5a5878", lineHeight: 1.9 }}>HSP约占人口15-20%，拥有更深的信息处理能力和情绪感知，更容易被外界刺激过载，需要更多的恢复时间。</p>
+              </div>
+            </div>
+
+            {/* right */}
+            <div style={{ flex: 1, padding: "48px 60px", maxWidth: 680 }}>
+
+              {step === "welcome" && (
+                <div className="fadeUp">
+                  <h2 style={{ fontSize: 28, fontWeight: 400, color: "#ede9fe", margin: "0 0 12px" }}>你好，我在这里</h2>
+                  <p style={{ color: C.muted, fontSize: 15, lineHeight: 2, margin: "0 0 40px" }}>今天遇到了什么让你感到难受的事吗？<br/>我会先好好听你说，然后陪你一步一步渡过去。</p>
+                  <button style={pBtn(false)} onClick={() => setStep("trigger")}>开始，告诉我发生了什么 →</button>
+                </div>
+              )}
+
+              {step === "trigger" && (
+                <div className="fadeUp">
+                  <div style={card}>
+                    <span style={lbl}>第一步：是什么触发了你？（可多选）</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+                      {TRIGGERS.map(t => {
+                        const sel = triggers.includes(t.id);
+                        return <button key={t.id} onClick={() => toggleTrigger(t.id)} style={{ background: sel ? "rgba(124,58,237,0.22)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(124,58,237,0.55)" : C.border}`, borderRadius: 12, padding: "14px 8px", color: sel ? C.purpleLight : C.muted, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 20 }}>{t.emoji}</span><span>{t.label}</span>
+                        </button>;
+                      })}
+                    </div>
+                  </div>
+                  <button style={pBtn(!triggers.length)} disabled={!triggers.length} onClick={() => setStep("story")}>继续 →</button>
+                </div>
+              )}
+
+              {step === "story" && (
+                <div className="fadeUp">
+                  <div style={card}>
+                    <span style={lbl}>第二步：刚刚发生了什么？</span>
+                    <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.9, margin: "0 0 16px" }}>不用整理思路，想到什么就写什么。<br/>这里只有倾听，没有评判。</p>
+                    <textarea value={story} onChange={e => setStory(e.target.value)}
+                      placeholder="比如：开会时被打断了好几次，说了什么没有人理我，后来我……"
+                      rows={6} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, color: C.text, fontSize: 15, lineHeight: 1.9, resize: "none" }}
+                      onFocus={e => e.target.style.borderColor = "rgba(124,58,237,0.5)"}
+                      onBlur={e => e.target.style.borderColor = C.border} />
+                    <div style={{ fontSize: 12, color: C.dimmer, marginTop: 8, textAlign: "right" }}>{story.length > 0 ? `${story.length} 字` : "也可以跳过"}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button style={pBtn(false)} onClick={() => setStep("intensity")}>{story.trim() ? "写完了，继续 →" : "跳过，继续 →"}</button>
+                    <button style={gBtn} onClick={() => setStep("trigger")}>← 返回</button>
+                  </div>
+                </div>
+              )}
+
+              {step === "intensity" && (
+                <div className="fadeUp">
+                  <div style={card}>
+                    <span style={lbl}>第三步：此刻的程度？</span>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      {INTENSITY.map(i => {
+                        const sel = intensity === i.value;
+                        return <button key={i.value} onClick={() => setIntensity(i.value)} style={{ background: sel ? "rgba(124,58,237,0.18)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(124,58,237,0.5)" : C.border}`, borderRadius: 12, padding: "16px 20px", color: sel ? "#ddd6fe" : C.muted, fontSize: 15, textAlign: "left", display: "flex", alignItems: "center", gap: 14 }}>
+                          <div style={{ display: "flex", gap: 4 }}>{[1,2,3,4].map(d => <div key={d} style={{ width: 8, height: 8, borderRadius: "50%", background: d <= i.value ? (sel ? C.purple : C.muted) : "rgba(255,255,255,0.1)" }} />)}</div>
+                          {i.label}
+                        </button>;
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button style={pBtn(!intensity)} disabled={!intensity} onClick={submit}>帮我渡过这一关</button>
+                    <button style={gBtn} onClick={() => setStep("story")}>← 返回</button>
+                  </div>
+                </div>
+              )}
+
+              {step === "result" && (
+                <div>
+                  {loading && <div className="fadeUp" style={{ paddingTop: 40 }}>
+                    <p className="pulse" style={{ color: C.muted, fontSize: 15 }}>{loadingMsg}…</p>
+                  </div>}
+                  {error && !loading && <div style={{ ...card, borderColor: "rgba(239,68,68,0.3)" }}>
+                    <p style={{ color: "#f87171", fontSize: 15, margin: "0 0 16px" }}>{error}</p>
+                    <div style={{ display: "flex", gap: 12 }}>
+                      <button style={pBtn(false)} onClick={submit}>重试</button>
+                      <button style={gBtn} onClick={reset}>重新开始</button>
+                    </div>
+                  </div>}
+                  {!loading && !error && comfort && <div className="fadeUp">
+                    <div style={{ ...card, borderColor: "rgba(124,58,237,0.22)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+                        <Orb intensity={1} size={32} />
+                        <span style={lbl}>我听到了</span>
+                      </div>
+                      <p style={{ lineHeight: 2.1, fontSize: 16, color: C.text, margin: 0 }}>
+                        <TypedText text={comfort} speed={18} onDone={() => plan && setTimeout(() => setShowPlan(true), 700)} />
+                      </p>
+                    </div>
+                    {showPlan && plan && <div style={{ ...card, animation: "fadeUp 0.7s ease" }}>
+                      <span style={lbl}>接下来，这样做</span>
+                      <div style={{ lineHeight: 2.1, fontSize: 15, color: "#cac7e8", whiteSpace: "pre-wrap" }}>
+                        <TypedText text={plan} speed={14} onDone={() => setTimeout(() => setShowRecovery(true), 1000)} />
+                      </div>
+                    </div>}
+                    {showRecovery && <div style={{ animation: "fadeUp 0.6s ease" }}>
+                      <span style={{ ...lbl, display: "block", marginBottom: 14 }}>恢复练习</span>
+                      <RecoveryJourney intensity={intensity} />
+                    </div>}
+                    {showPlan && <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+                      <button style={pBtn(false)} onClick={reset}>再来一次</button>
+                      <button style={gBtn} onClick={() => setStep("welcome")}>回到首页</button>
+                    </div>}
+                  </div>}
+                </div>
+              )}
+
+              {step === "logs" && (
+                <div className="fadeUp">
+                  <h2 style={{ fontSize: 22, fontWeight: 400, color: "#ede9fe", margin: "0 0 24px" }}>我的记录</h2>
+                  {logs.map((log, i) => (
+                    <div key={i} style={{ ...card, marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, color: C.dimmer }}>{log.time}</span>
+                        <div style={{ display: "flex", gap: 4 }}>{[1,2,3,4].map(d => <div key={d} style={{ width: 7, height: 7, borderRadius: "50%", background: d <= log.intensity ? C.purple : "rgba(255,255,255,0.08)" }} />)}</div>
+                      </div>
+                      <div style={{ fontSize: 14, color: C.muted, marginBottom: log.story ? 6 : 0 }}>{log.triggers}</div>
+                      {log.story && <div style={{ fontSize: 13, color: C.dimmer, fontStyle: "italic" }}>"{log.story}"</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div ref={bottomRef} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
