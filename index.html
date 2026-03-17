@@ -3,28 +3,89 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HSP · 情绪急救箱</title>
+  <title>DD · 情绪急救箱</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0c0c13; font-family: 'Georgia', 'Palatino', serif; color: #ddd8f5; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    :root {
+      --bg: #fdf8f3;
+      --bg2: #f7f0e8;
+      --surface: rgba(255,255,255,0.85);
+      --surface2: rgba(255,255,255,0.6);
+      --border: rgba(180,150,130,0.15);
+      --border2: rgba(180,150,130,0.25);
+      --purple: #9b7ec8;
+      --purple-light: #c9aee8;
+      --purple-dim: rgba(155,126,200,0.12);
+      --purple-dim2: rgba(155,126,200,0.2);
+      --rose: #e8a0a0;
+      --rose-dim: rgba(232,160,160,0.15);
+      --text: #3d2f2f;
+      --text2: #7a6060;
+      --text3: #b09898;
+      --shadow: 0 4px 24px rgba(100,60,60,0.08);
+      --shadow2: 0 8px 40px rgba(100,60,60,0.12);
+    }
+
+    body {
+      background: var(--bg);
+      font-family: 'Noto Sans SC', sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
     textarea { outline: none; font-family: inherit; }
-    button { font-family: inherit; transition: opacity 0.15s; cursor: pointer; }
-    button:hover:not(:disabled) { opacity: 0.85; }
-    button:active:not(:disabled) { opacity: 0.7; }
-    @keyframes breathe { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.07);opacity:1} }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+    button { font-family: inherit; cursor: pointer; border: none; transition: all 0.2s ease; }
+    button:active { transform: scale(0.97); }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-    .breathe { animation: breathe 4s ease-in-out infinite; }
-    .fadeUp { animation: fadeUp 0.6s ease; }
-    .pulse { animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+    @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+    .fadeUp { animation: fadeUp 0.6s ease forwards; }
     .float { animation: float 3s ease-in-out infinite; }
+
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: rgba(124,58,237,.3); border-radius: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+    /* Background texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: 
+        radial-gradient(ellipse at 20% 20%, rgba(155,126,200,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(232,160,160,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 30%, rgba(255,220,180,0.05) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .desktop-only { display: none !important; }
+      .mobile-nav { display: flex !important; }
+      .main-layout { flex-direction: column !important; padding-top: 60px !important; }
+      .right-panel { padding: 24px 20px !important; max-width: 100% !important; }
+      .trigger-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .intensity-grid { grid-template-columns: 1fr !important; }
+      .btn-row { flex-direction: column !important; }
+      .btn-row button { width: 100% !important; }
+    }
+
+    @media (min-width: 769px) {
+      .mobile-only { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -44,64 +105,69 @@
     ];
 
     const INTENSITY = [
-      { value: 1, label: "有点不对劲" },
-      { value: 2, label: "需要喘口气" },
-      { value: 3, label: "快撑不住了" },
-      { value: 4, label: "已经崩了" },
+      { value: 1, label: "有点不对劲", desc: "轻微不适" },
+      { value: 2, label: "需要喘口气", desc: "明显难受" },
+      { value: 3, label: "快撑不住了", desc: "很痛苦" },
+      { value: 4, label: "已经崩了",   desc: "极度过载" },
     ];
 
     const RECOVERY_STEPS = [
-      { id: "ground", title: "落地练习", icon: "🌿", duration: 60, instructions: ["把双脚平放在地面上，感受地板的支撑", "慢慢注意你身边的 5 样东西", "轻轻把注意力带回此刻这个房间"] },
-      { id: "body",   title: "身体扫描", icon: "✨", duration: 90, instructions: ["从头顶开始，慢慢往下感受身体", "哪里紧绷，就对那个地方轻轻呼气", "不需要改变什么，只是感受"] },
-      { id: "self",   title: "自我关怀", icon: "🌸", duration: 60, instructions: ["把手轻轻放在胸口", "默念：「这很难，但我撑过来了」", "允许自己感受任何情绪，不评判"] },
-      { id: "reframe",title: "重新看见自己", icon: "💜", duration: 45, instructions: ["高敏感不是弱点，是你比别人感受更多", "你今天经历的，对任何人来说都不容易", "你需要的休息，是完全合理的"] },
+      { id: "ground",  title: "落地练习",   icon: "🌿", duration: 60, instructions: ["把双脚平放在地面上，感受地板的支撑", "慢慢环顾四周，注意5件你能看到的东西", "轻轻把注意力带回此刻这个房间"] },
+      { id: "body",    title: "身体扫描",   icon: "✨", duration: 90, instructions: ["从头顶开始，慢慢往下感受身体每个部位", "哪里紧绷，就对那个地方轻轻呼气放松", "不需要改变什么，只是温柔地感受"] },
+      { id: "self",    title: "自我关怀",   icon: "🌸", duration: 60, instructions: ["把手轻轻放在胸口，感受心跳", "默念：「这很难，但我已经尽力了」", "允许自己感受任何情绪，不评判"] },
+      { id: "reframe", title: "重新看见自己", icon: "💜", duration: 45, instructions: ["高敏感不是弱点，是你比别人感受更深", "你今天经历的，对任何人来说都不容易", "你需要的休息，是完全合理的"] },
     ];
 
-    const SYSTEM_PROMPT = `你是 DD，一个温柔、有智慧的情绪陪伴者，专门帮助高敏感人群（HSP）渡过情绪难关。
+    const SYSTEM_PROMPT = `你是 DD，一个有温度、有智慧的情绪分析师和心理陪伴者，专门帮助高敏感人群（HSP）。
 
-你有自己的个性：温暖但不甜腻，真诚但不说教，像一个真正懂你的老朋友。你说话简洁有质感，偶尔会用一两句有诗意的话，但不过分文艺。
+你的能力：
+1. 深度分析用户的情绪状态和触发原因
+2. 识别用户话语背后的深层需要
+3. 给出科学且温暖的情绪调节建议
+4. 像真正关心对方的朋友一样说话
 
-用户会告诉你：触发情境、刚刚发生的事、以及崩溃程度。
+你的个性：温暖但不甜腻，真诚不说教，有时会用一两句有诗意的话，但不过分文艺。
 
-你的回应严格分为两部分，用单独一行"---"分隔：
+用户会告诉你：触发情境、发生的事情、崩溃程度。
 
-第一部分（被听见）：
-- 以"DD：" 开头
-- 真正回应用户描述的具体内容，不泛泛安慰
-- 承认他们感受的合理性，温柔呼应他们说的话
-- 不评判，不分析，不问为什么
-- 80-100字，温柔有质感
+你的回应分两部分，用"---"单独一行分隔：
+
+【第一部分：情绪分析与共鸣】
+- 先分析用户当前的情绪状态（用1-2句自然地说出来，不要标注"分析："）
+- 真正回应用户说的具体内容，让他们感到被看见
+- 语气温柔，像朋友说话，80-100字
 
 ---
 
-第二部分（接下来怎么做）：
-- 以"DD：" 开头
-- 给出2-3个非常具体的行动建议帮助情绪好转
-- 每个建议用自然段落，不用序号
-- 要非常具体（如"找一面墙，把手掌贴上去感受温度"）
+【第二部分：具体行动方案】  
+- 给出3个非常具体的步骤帮助情绪好转
+- 每步用自然段落，不用序号
+- 必须非常具体（比如"找一面墙，把手掌贴上去感受温度"而不是"冷静一下"）
 - 结尾一句温柔收尾
-- 100-150字
+- 120-160字
 
-绝不说"我理解你的感受"。整体风格温暖、简洁、有诗意。`;
+永远不说"我理解你的感受"。风格温暖、简洁、有质感。`;
 
-    // DD Avatar component
-    function DDAvatar({ size = 60, animated = false }) {
+    // ── DD Avatar ──
+    function DDAvatar({ size = 48, animated = false, pulse = false }) {
       return (
         <div className={animated ? "float" : ""} style={{
           width: size, height: size, borderRadius: "50%", flexShrink: 0,
-          background: "radial-gradient(circle at 38% 32%, #c4b5fd 0%, #7c3aed 48%, #1e1040 100%)",
-          boxShadow: "0 0 24px 8px rgba(124,58,237,0.3)",
+          background: "linear-gradient(135deg, #c9aee8 0%, #9b7ec8 50%, #7c5fb5 100%)",
+          boxShadow: pulse
+            ? "0 0 0 8px rgba(155,126,200,0.15), 0 0 0 16px rgba(155,126,200,0.08)"
+            : "0 4px 16px rgba(155,126,200,0.3)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: size * 0.38, userSelect: "none",
-          animation: animated ? "float 3s ease-in-out infinite" : undefined,
+          fontSize: size * 0.4, color: "white", userSelect: "none",
+          transition: "box-shadow 0.3s ease",
         }}>
           ✦
         </div>
       );
     }
 
-    // DD chat bubble
-    function DDBubble({ text, onDone, speed = 16 }) {
+    // ── Typed text ──
+    function TypedText({ text, speed = 18, onDone }) {
       const [displayed, setDisplayed] = useState("");
       const [done, setDone] = useState(false);
       const idx = useRef(0);
@@ -115,25 +181,39 @@
         }, speed);
         return () => clearInterval(iv);
       }, [text]);
+      return <span>{displayed}{!done && <span style={{ animation: "blink 0.8s infinite", color: "var(--purple)" }}>|</span>}</span>;
+    }
+
+    // ── DD Chat Bubble ──
+    function DDBubble({ text, speed = 18, onDone }) {
       return (
-        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 20 }}>
-          <DDAvatar size={38} />
-          <div style={{ background: "rgba(124,58,237,0.1)", border: "1px solid rgba(124,58,237,0.25)", borderRadius: "4px 16px 16px 16px", padding: "14px 18px", maxWidth: 520, flex: 1 }}>
-            <div style={{ fontSize: 11, color: "#7c3aed", letterSpacing: "0.15em", marginBottom: 8 }}>DD</div>
-            <p style={{ lineHeight: 2, fontSize: 15, color: "#ddd8f5", margin: 0 }}>
-              {displayed}
-              {!done && <span style={{ animation: "blink 1s infinite", color: "#7c3aed" }}>▌</span>}
-            </p>
+        <div className="fadeUp" style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 20 }}>
+          <DDAvatar size={40} />
+          <div style={{ flex: 1, maxWidth: 560 }}>
+            <div style={{ fontSize: 11, color: "var(--purple)", letterSpacing: "0.12em", marginBottom: 8, fontWeight: 500 }}>DD</div>
+            <div style={{
+              background: "white",
+              border: "1px solid var(--border2)",
+              borderRadius: "4px 16px 16px 16px",
+              padding: "16px 20px",
+              boxShadow: "var(--shadow)",
+            }}>
+              <p style={{ lineHeight: 2, fontSize: 15, color: "var(--text)", margin: 0 }}>
+                <TypedText text={text} speed={speed} onDone={onDone} />
+              </p>
+            </div>
           </div>
         </div>
       );
     }
 
+    // ── Recovery Step ──
     function RecoveryStep({ step, onDone }) {
       const [phase, setPhase] = useState("intro");
       const [elapsed, setElapsed] = useState(0);
       const [instrIdx, setInstrIdx] = useState(0);
       const ref = useRef(null);
+
       useEffect(() => {
         if (phase !== "active") return;
         ref.current = setInterval(() => {
@@ -147,265 +227,479 @@
         }, 1000);
         return () => clearInterval(ref.current);
       }, [phase]);
+
       const progress = Math.min(elapsed / step.duration, 1);
-      const r = 26, circ = 2 * Math.PI * r;
+      const r = 24, circ = 2 * Math.PI * r;
+
       return (
-        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 16, padding: 20, marginBottom: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <div style={{
+          background: "white", border: "1px solid var(--border2)",
+          borderRadius: 16, padding: "20px 22px", marginBottom: 12,
+          boxShadow: "var(--shadow)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <span style={{ fontSize: 20 }}>{step.icon}</span>
-            <div style={{ fontSize: 14, color: "#c4b5fd" }}>{step.title}</div>
+            <div style={{ fontSize: 14, color: "var(--purple)", fontWeight: 500 }}>{step.title}</div>
             {phase === "active" && (
-              <svg width="58" height="58" style={{ marginLeft: "auto" }}>
-                <circle cx="29" cy="29" r={r} fill="none" stroke="rgba(124,58,237,0.15)" strokeWidth="3"/>
-                <circle cx="29" cy="29" r={r} fill="none" stroke="#7c3aed" strokeWidth="3"
+              <svg width="56" height="56" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                <circle cx="28" cy="28" r={r} fill="none" stroke="rgba(155,126,200,0.15)" strokeWidth="3"/>
+                <circle cx="28" cy="28" r={r} fill="none" stroke="var(--purple)" strokeWidth="3"
                   strokeDasharray={circ} strokeDashoffset={circ * (1 - progress)}
-                  strokeLinecap="round" transform="rotate(-90 29 29)"
+                  strokeLinecap="round" transform="rotate(-90 28 28)"
                   style={{ transition: "stroke-dashoffset 1s linear" }}/>
-                <text x="29" y="34" textAnchor="middle" fill="#a78bfa" fontSize="12" fontFamily="Georgia,serif">
+                <text x="28" y="33" textAnchor="middle" fill="var(--purple)" fontSize="11" fontFamily="inherit">
                   {step.duration - elapsed}s
                 </text>
               </svg>
             )}
           </div>
-          {phase === "intro" && (<>
-            {step.instructions.map((s, i) => (
-              <div key={i} style={{ color: "#8a87aa", fontSize: 13, lineHeight: 1.9, paddingLeft: 12, borderLeft: "2px solid rgba(124,58,237,0.2)", marginBottom: 8 }}>{s}</div>
-            ))}
-            <button onClick={() => { setPhase("active"); setElapsed(0); setInstrIdx(0); }} style={{ marginTop: 10, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", color: "#c4b5fd", padding: "7px 20px", borderRadius: 20, fontSize: 13 }}>
-              开始 · {step.duration}秒
-            </button>
-          </>)}
-          {phase === "active" && <p className="fadeUp" style={{ color: "#ddd6fe", fontSize: 15, lineHeight: 1.9, margin: 0 }}>{step.instructions[instrIdx]}</p>}
-          {phase === "done" && <div className="fadeUp">
-            <p style={{ color: "#a78bfa", fontSize: 13, margin: "0 0 10px" }}>完成了 ✓</p>
-            <button onClick={onDone} style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.4)", color: "#c4b5fd", padding: "7px 20px", borderRadius: 20, fontSize: 13 }}>继续</button>
-          </div>}
+
+          {phase === "intro" && (
+            <>
+              {step.instructions.map((s, i) => (
+                <div key={i} style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.9, paddingLeft: 12, borderLeft: "2px solid var(--purple-light)", marginBottom: 8 }}>{s}</div>
+              ))}
+              <button onClick={() => { setPhase("active"); setElapsed(0); setInstrIdx(0); }} style={{
+                marginTop: 12, background: "var(--purple-dim2)", border: "1px solid var(--purple-light)",
+                color: "var(--purple)", padding: "8px 20px", borderRadius: 20, fontSize: 13, fontWeight: 500,
+              }}>开始 · {step.duration}秒</button>
+            </>
+          )}
+
+          {phase === "active" && (
+            <p style={{ color: "var(--text)", fontSize: 15, lineHeight: 1.9, margin: 0, animation: "fadeUp 0.4s ease" }}>
+              {step.instructions[instrIdx]}
+            </p>
+          )}
+
+          {phase === "done" && (
+            <div style={{ animation: "fadeUp 0.4s ease" }}>
+              <p style={{ color: "var(--purple)", fontSize: 13, margin: "0 0 12px" }}>✓ 完成了，做得很好</p>
+              <button onClick={onDone} style={{
+                background: "var(--purple-dim2)", border: "1px solid var(--purple-light)",
+                color: "var(--purple)", padding: "8px 20px", borderRadius: 20, fontSize: 13,
+              }}>继续下一步</button>
+            </div>
+          )}
         </div>
       );
     }
 
+    // ── Recovery Journey ──
     function RecoveryJourney({ intensity }) {
       const [idx, setIdx] = useState(0);
       const [allDone, setAllDone] = useState(false);
       const steps = RECOVERY_STEPS.slice(0, intensity <= 2 ? 2 : 3);
+
       if (allDone) return (
-        <div className="fadeUp" style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 16, padding: 24, textAlign: "center" }}>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>🌙</div>
-          <p style={{ color: "#ddd6fe", fontSize: 15, lineHeight: 1.9, margin: "0 0 4px" }}>你完成了今天的恢复练习</p>
-          <p style={{ color: "#7a7898", fontSize: 13 }}>记得给自己一点时间，不必马上回去</p>
+        <div className="fadeUp" style={{
+          background: "linear-gradient(135deg, rgba(155,126,200,0.08), rgba(232,160,160,0.08))",
+          border: "1px solid var(--border2)", borderRadius: 16, padding: "28px 24px", textAlign: "center",
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>🌙</div>
+          <p style={{ color: "var(--text)", fontSize: 16, lineHeight: 1.9, margin: "0 0 6px", fontFamily: "'Noto Serif SC', serif" }}>你完成了今天的恢复练习</p>
+          <p style={{ color: "var(--text2)", fontSize: 13 }}>不必马上回去，给自己多一点时间</p>
         </div>
       );
+
       return (
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            {steps.map((s, i) => <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: i < idx ? "#7c3aed" : i === idx ? "#a78bfa" : "rgba(255,255,255,0.1)" }} />)}
-            <span style={{ fontSize: 11, color: "#4b4870", marginLeft: 4 }}>{idx + 1} / {steps.length}</span>
+            {steps.map((s, i) => (
+              <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: i < idx ? "var(--purple)" : i === idx ? "var(--purple-light)" : "var(--border2)", transition: "background 0.3s" }} />
+            ))}
+            <span style={{ fontSize: 11, color: "var(--text3)", marginLeft: 4 }}>{idx + 1} / {steps.length}</span>
           </div>
           <RecoveryStep step={steps[idx]} onDone={() => { if (idx < steps.length - 1) setIdx(i => i + 1); else setAllDone(true); }} />
         </div>
       );
     }
 
+    // ── Main App ──
     function App() {
-      const [step, setStep] = useState("welcome");
-      const [triggers, setTriggers] = useState([]);
-      const [story, setStory] = useState("");
-      const [intensity, setIntensity] = useState(null);
-      const [comfort, setComfort] = useState("");
-      const [plan, setPlan] = useState("");
-      const [showPlan, setShowPlan] = useState(false);
+      const [step, setStep]               = useState("welcome");
+      const [triggers, setTriggers]       = useState([]);
+      const [story, setStory]             = useState("");
+      const [intensity, setIntensity]     = useState(null);
+      const [comfort, setComfort]         = useState("");
+      const [plan, setPlan]               = useState("");
+      const [showPlan, setShowPlan]       = useState(false);
       const [showRecovery, setShowRecovery] = useState(false);
-      const [loading, setLoading] = useState(false);
-      const [loadingMsg, setLoadingMsg] = useState("DD 正在倾听");
-      const [error, setError] = useState("");
-      const [logs, setLogs] = useState([]);
+      const [loading, setLoading]         = useState(false);
+      const [loadingMsg, setLoadingMsg]   = useState("DD 正在倾听");
+      const [error, setError]             = useState("");
+      const [logs, setLogs]               = useState([]);
+      const [mobileMenu, setMobileMenu]   = useState(false);
       const bottomRef = useRef(null);
       const msgIdx = useRef(0);
-      const msgs = ["DD 正在倾听", "DD 感受你说的话", "DD 在为你思考", "马上好了"];
+      const msgs = ["DD 正在倾听", "分析你说的话", "为你思考方案", "马上好了"];
 
       useEffect(() => {
         if (!loading) return;
-        const iv = setInterval(() => { msgIdx.current = (msgIdx.current + 1) % msgs.length; setLoadingMsg(msgs[msgIdx.current]); }, 1800);
+        const iv = setInterval(() => {
+          msgIdx.current = (msgIdx.current + 1) % msgs.length;
+          setLoadingMsg(msgs[msgIdx.current]);
+        }, 1800);
         return () => clearInterval(iv);
       }, [loading]);
 
-      useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [step, showPlan, showRecovery]);
+      useEffect(() => {
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      }, [step, showPlan, showRecovery]);
 
       const toggleTrigger = id => setTriggers(p => p.includes(id) ? p.filter(t => t !== id) : [...p, id]);
 
       const submit = useCallback(async () => {
-        setLoading(true); setError(""); setStep("result"); setShowPlan(false); setShowRecovery(false);
+        setLoading(true); setError(""); setStep("result");
+        setShowPlan(false); setShowRecovery(false);
         const triggerLabels = triggers.map(id => TRIGGERS.find(t => t.id === id)?.label).join("、");
         const intensityLabel = INTENSITY.find(i => i.value === intensity)?.label;
-        const userMsg = `触发情境：${triggerLabels}\n崩溃程度：${intensityLabel}（${intensity}/4）\n\n刚刚发生的事：${story.trim() || "（用户没有描述）"}`;
+        const userMsg = `触发情境：${triggerLabels}\n崩溃程度：${intensityLabel}（${intensity}/4）\n\n用户描述：${story.trim() || "（没有详细描述）"}`;
+
         try {
           const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ message: userMsg, system: SYSTEM_PROMPT }),
           });
-          if (!res.ok) throw new Error(`${res.status}`);
+          if (!res.ok) {
+            const errData = await res.text();
+            throw new Error(`${res.status}: ${errData}`);
+          }
           const data = await res.json();
           const full = data.text || "";
           const si = full.indexOf("\n---\n");
-          if (si !== -1) { setComfort(full.slice(0, si).replace(/^DD：/, "").trim()); setPlan(full.slice(si + 5).replace(/^DD：/, "").trim()); }
-          else { setComfort(full.replace(/^DD：/, "").trim()); setPlan(""); }
-          setLogs(prev => [{ time: new Date().toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }), triggers: triggerLabels, intensity, story: story.trim().slice(0, 50) + (story.trim().length > 50 ? "…" : "") }, ...prev]);
-        } catch (e) { setError("DD 暂时联系不上，请稍后重试。(" + e.message + ")"); }
+          if (si !== -1) {
+            setComfort(full.slice(0, si).trim());
+            setPlan(full.slice(si + 5).trim());
+          } else {
+            setComfort(full.trim());
+            setPlan("");
+          }
+          setLogs(prev => [{
+            time: new Date().toLocaleDateString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
+            triggers: triggerLabels, intensity,
+            story: story.trim().slice(0, 50) + (story.trim().length > 50 ? "…" : ""),
+          }, ...prev]);
+        } catch (e) {
+          setError("DD 暂时联系不上，请稍后重试。(" + e.message + ")");
+        }
         setLoading(false);
       }, [triggers, story, intensity]);
 
-      const reset = () => { setStep("trigger"); setTriggers([]); setStory(""); setIntensity(null); setComfort(""); setPlan(""); setShowPlan(false); setShowRecovery(false); setLoading(false); setError(""); };
+      const reset = () => {
+        setStep("trigger"); setTriggers([]); setStory(""); setIntensity(null);
+        setComfort(""); setPlan(""); setShowPlan(false); setShowRecovery(false);
+        setLoading(false); setError("");
+      };
 
-      const C = { bg: "#0c0c13", surface: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.07)", purple: "#7c3aed", purpleLight: "#c4b5fd", text: "#ddd8f5", muted: "#7a7898", dimmer: "#4b4870" };
-      const card = { background: C.surface, border: `1px solid ${C.border}`, borderRadius: 20, padding: "26px 28px", marginBottom: 14 };
-      const pBtn = (dis) => ({ background: dis ? "rgba(124,58,237,0.2)" : "linear-gradient(135deg,#7c3aed,#3b0764)", border: "none", borderRadius: 14, padding: "13px 28px", color: dis ? "#6b5a9a" : "#ede9fe", fontSize: 15, cursor: dis ? "not-allowed" : "pointer", letterSpacing: "0.04em", boxShadow: dis ? "none" : "0 4px 24px rgba(124,58,237,0.25)" });
-      const gBtn = { background: "none", border: "none", color: C.dimmer, fontSize: 13, cursor: "pointer", padding: "10px 0" };
-      const lbl = { fontSize: 11, letterSpacing: "0.2em", color: C.muted, textTransform: "uppercase", marginBottom: 14, fontStyle: "italic", display: "block" };
+      // Shared styles
+      const card = {
+        background: "var(--surface)", border: "1px solid var(--border2)",
+        borderRadius: 20, padding: "24px 24px", marginBottom: 16,
+        boxShadow: "var(--shadow)", backdropFilter: "blur(10px)",
+      };
+      const pBtn = (disabled) => ({
+        background: disabled ? "rgba(155,126,200,0.2)" : "linear-gradient(135deg, #9b7ec8, #7c5fb5)",
+        borderRadius: 14, padding: "13px 28px",
+        color: disabled ? "var(--text3)" : "white",
+        fontSize: 15, fontWeight: 500,
+        cursor: disabled ? "not-allowed" : "pointer",
+        boxShadow: disabled ? "none" : "0 4px 16px rgba(124,95,181,0.3)",
+        opacity: disabled ? 0.6 : 1,
+        border: "none",
+      });
+      const gBtn = {
+        background: "none", border: "none",
+        color: "var(--text3)", fontSize: 13,
+        cursor: "pointer", padding: "10px 0",
+      };
+      const sectionLabel = {
+        fontSize: 11, letterSpacing: "0.18em", color: "var(--text3)",
+        textTransform: "uppercase", marginBottom: 16, display: "block", fontWeight: 500,
+      };
 
       return (
-        <div style={{ minHeight: "100vh", background: C.bg }}>
-          <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: 700, height: 500, borderRadius: "50%", pointerEvents: "none", zIndex: 0, background: "radial-gradient(circle, rgba(109,40,217,0.06) 0%, transparent 70%)" }} />
+        <div style={{ minHeight: "100vh", position: "relative", zIndex: 1 }}>
 
-          <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, borderBottom: "1px solid rgba(255,255,255,0.05)", background: "rgba(12,12,19,0.9)", backdropFilter: "blur(20px)", padding: "15px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* ── NAV ── */}
+          <nav style={{
+            position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
+            background: "rgba(253,248,243,0.92)", backdropFilter: "blur(20px)",
+            borderBottom: "1px solid var(--border)", padding: "0 24px",
+            height: 56, display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <DDAvatar size={28} />
-              <div style={{ fontSize: 12, letterSpacing: "0.2em", color: C.dimmer }}>HSP · 情绪急救箱</div>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)", letterSpacing: "0.05em" }}>DD · 情绪急救箱</span>
             </div>
-            <div style={{ display: "flex", gap: 24 }}>
-              <button onClick={() => setStep("welcome")} style={gBtn}>首页</button>
-              {logs.length > 0 && <button onClick={() => setStep("logs")} style={gBtn}>我的记录（{logs.length}）</button>}
+            <div className="desktop-only" style={{ display: "flex", gap: 20 }}>
+              <button onClick={() => setStep("welcome")} style={{ ...gBtn, fontSize: 13 }}>首页</button>
+              {logs.length > 0 && <button onClick={() => setStep("logs")} style={{ ...gBtn, fontSize: 13 }}>我的记录（{logs.length}）</button>}
             </div>
+            {/* Mobile menu */}
+            <button className="mobile-only" onClick={() => setMobileMenu(!mobileMenu)} style={{ background: "none", border: "none", fontSize: 20, color: "var(--text2)", cursor: "pointer" }}>
+              {mobileMenu ? "✕" : "☰"}
+            </button>
           </nav>
 
-          <div style={{ display: "flex", minHeight: "100vh", paddingTop: 58, position: "relative", zIndex: 1 }}>
-            {/* Left panel */}
-            <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid rgba(255,255,255,0.05)", padding: "52px 32px", display: "flex", flexDirection: "column", alignItems: "center", position: "sticky", top: 58, height: "calc(100vh - 58px)", overflow: "hidden" }}>
-              <DDAvatar size={88} animated={true} />
-              <div style={{ marginTop: 20, textAlign: "center" }}>
-                <div style={{ fontSize: 18, color: "#c4b5fd", letterSpacing: "0.1em", marginBottom: 6 }}>DD</div>
-                <div style={{ fontSize: 12, color: C.dimmer, marginBottom: 16 }}>你的情绪陪伴者</div>
-                <h2 style={{ fontSize: 19, fontWeight: 400, color: "#ede9fe", lineHeight: 1.6, margin: "0 0 10px" }}>此刻，你安全了</h2>
-                <p style={{ color: C.muted, fontSize: 13, lineHeight: 2 }}>告诉我发生了什么<br/>我陪你慢下来</p>
+          {/* Mobile dropdown */}
+          {mobileMenu && (
+            <div className="mobile-only" style={{ position: "fixed", top: 56, left: 0, right: 0, zIndex: 150, background: "var(--bg)", borderBottom: "1px solid var(--border)", padding: "12px 24px" }}>
+              <button onClick={() => { setStep("welcome"); setMobileMenu(false); }} style={{ ...gBtn, display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 15 }}>首页</button>
+              {logs.length > 0 && <button onClick={() => { setStep("logs"); setMobileMenu(false); }} style={{ ...gBtn, display: "block", width: "100%", textAlign: "left", padding: "10px 0", fontSize: 15 }}>我的记录（{logs.length}）</button>}
+            </div>
+          )}
+
+          {/* ── LAYOUT ── */}
+          <div className="main-layout" style={{ display: "flex", minHeight: "100vh", paddingTop: 56 }}>
+
+            {/* Left sidebar — desktop only */}
+            <div className="desktop-only" style={{
+              width: 280, flexShrink: 0,
+              borderRight: "1px solid var(--border)",
+              padding: "48px 28px",
+              display: "flex", flexDirection: "column", alignItems: "center",
+              position: "sticky", top: 56, height: "calc(100vh - 56px)", overflow: "hidden",
+              background: "rgba(255,255,255,0.4)", backdropFilter: "blur(10px)",
+            }}>
+              <div className="float">
+                <DDAvatar size={80} pulse={loading} />
               </div>
-              <div style={{ marginTop: "auto", width: "100%", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 22 }}>
-                <div style={{ fontSize: 11, color: C.dimmer, letterSpacing: "0.15em", marginBottom: 10 }}>高敏感是什么？</div>
-                <p style={{ fontSize: 12, color: "#5a5878", lineHeight: 1.9 }}>HSP约占人口15-20%，拥有更深的信息处理能力和情绪感知，更容易被外界刺激过载。</p>
+              <div style={{ marginTop: 20, textAlign: "center" }}>
+                <div style={{ fontSize: 20, color: "var(--purple)", fontWeight: 500, letterSpacing: "0.08em", marginBottom: 4, fontFamily: "'Noto Serif SC', serif" }}>DD</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 16 }}>你的情绪陪伴者</div>
+                <h2 style={{ fontSize: 17, fontWeight: 400, color: "var(--text)", lineHeight: 1.7, margin: "0 0 8px", fontFamily: "'Noto Serif SC', serif" }}>此刻，你安全了</h2>
+                <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 2 }}>告诉我发生了什么<br />我陪你慢下来</p>
+              </div>
+              <div style={{ marginTop: "auto", width: "100%", borderTop: "1px solid var(--border)", paddingTop: 20 }}>
+                <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.12em", marginBottom: 8, fontWeight: 500 }}>高敏感（HSP）是什么？</div>
+                <p style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.9 }}>约15-20%的人天生拥有更深的情绪感知和信息处理能力，更容易被外界刺激过载，需要更多的恢复时间。这不是弱点，是一种特质。</p>
               </div>
             </div>
 
-            {/* Right panel */}
-            <div style={{ flex: 1, padding: "44px 56px", maxWidth: 660 }}>
+            {/* Right content */}
+            <div className="right-panel" style={{ flex: 1, padding: "36px 40px", maxWidth: 680 }}>
 
+              {/* ── WELCOME ── */}
               {step === "welcome" && (
                 <div className="fadeUp">
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+                  {/* Mobile DD intro */}
+                  <div className="mobile-only" style={{ textAlign: "center", marginBottom: 28 }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                      <DDAvatar size={64} animated={true} />
+                    </div>
+                    <div style={{ fontSize: 18, color: "var(--purple)", fontWeight: 500, fontFamily: "'Noto Serif SC', serif", marginBottom: 4 }}>DD</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)" }}>你的情绪陪伴者</div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
                     <DDAvatar size={44} />
                     <div>
-                      <div style={{ fontSize: 13, color: "#7c3aed", marginBottom: 4 }}>DD</div>
-                      <div style={{ fontSize: 20, fontWeight: 400, color: "#ede9fe" }}>你好，我在这里</div>
+                      <div style={{ fontSize: 11, color: "var(--purple)", letterSpacing: "0.12em", marginBottom: 4, fontWeight: 500 }}>DD</div>
+                      <div style={{ fontSize: 20, fontWeight: 400, color: "var(--text)", fontFamily: "'Noto Serif SC', serif" }}>你好，我在这里 🌸</div>
                     </div>
                   </div>
-                  <div style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: "4px 16px 16px 16px", padding: "18px 22px", marginBottom: 32, maxWidth: 480 }}>
-                    <p style={{ color: C.muted, fontSize: 15, lineHeight: 2, margin: 0 }}>今天遇到了什么让你感到难受的事吗？<br/>告诉我，我会好好听你说，然后陪你一步一步渡过去。</p>
+
+                  <div style={{
+                    background: "white", border: "1px solid var(--border2)",
+                    borderRadius: "4px 18px 18px 18px",
+                    padding: "18px 22px", marginBottom: 28,
+                    boxShadow: "var(--shadow)",
+                  }}>
+                    <p style={{ color: "var(--text2)", fontSize: 15, lineHeight: 2, margin: 0 }}>
+                      今天发生了什么让你感到难受的事吗？<br />
+                      告诉我，我会好好听你说——<br />
+                      然后帮你分析情绪，一步一步渡过去。
+                    </p>
                   </div>
-                  <button style={pBtn(false)} onClick={() => setStep("trigger")}>开始，告诉 DD 发生了什么 →</button>
+
+                  <button style={{ ...pBtn(false), width: "100%" }} onClick={() => setStep("trigger")}>
+                    开始，告诉 DD 发生了什么 →
+                  </button>
+
+                  {/* Feature cards */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginTop: 24 }}>
+                    {[
+                      { icon: "🧠", title: "情绪分析", desc: "识别你的情绪状态和触发原因" },
+                      { icon: "💬", title: "倾听陪伴", desc: "被真正听见，而不是泛泛安慰" },
+                      { icon: "🌿", title: "恢复练习", desc: "具体可操作的情绪恢复步骤" },
+                    ].map((f, i) => (
+                      <div key={i} style={{ background: "white", border: "1px solid var(--border)", borderRadius: 14, padding: "16px 14px", textAlign: "center", boxShadow: "var(--shadow)" }}>
+                        <div style={{ fontSize: 22, marginBottom: 8 }}>{f.icon}</div>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text)", marginBottom: 4 }}>{f.title}</div>
+                        <div style={{ fontSize: 11, color: "var(--text3)", lineHeight: 1.7 }}>{f.desc}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
+              {/* ── TRIGGER ── */}
               {step === "trigger" && (
                 <div className="fadeUp">
                   <div style={card}>
-                    <span style={lbl}>第一步：是什么触发了你？（可多选）</span>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+                    <span style={sectionLabel}>第一步：是什么触发了你？（可多选）</span>
+                    <div className="trigger-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
                       {TRIGGERS.map(t => {
                         const sel = triggers.includes(t.id);
-                        return <button key={t.id} onClick={() => toggleTrigger(t.id)} style={{ background: sel ? "rgba(124,58,237,0.22)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(124,58,237,0.55)" : C.border}`, borderRadius: 12, padding: "13px 8px", color: sel ? C.purpleLight : C.muted, fontSize: 13, display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
-                          <span style={{ fontSize: 20 }}>{t.emoji}</span><span>{t.label}</span>
-                        </button>;
+                        return (
+                          <button key={t.id} onClick={() => toggleTrigger(t.id)} style={{
+                            background: sel ? "linear-gradient(135deg, rgba(155,126,200,0.15), rgba(232,160,160,0.1))" : "rgba(255,255,255,0.8)",
+                            border: `1.5px solid ${sel ? "var(--purple-light)" : "var(--border2)"}`,
+                            borderRadius: 12, padding: "13px 6px",
+                            color: sel ? "var(--purple)" : "var(--text2)", fontSize: 12, fontWeight: sel ? 500 : 400,
+                            display: "flex", flexDirection: "column", alignItems: "center", gap: 7,
+                            boxShadow: sel ? "0 2px 12px rgba(155,126,200,0.2)" : "none",
+                          }}>
+                            <span style={{ fontSize: 20 }}>{t.emoji}</span>
+                            <span>{t.label}</span>
+                          </button>
+                        );
                       })}
                     </div>
                   </div>
-                  <button style={pBtn(!triggers.length)} disabled={!triggers.length} onClick={() => setStep("story")}>继续 →</button>
+                  <button style={{ ...pBtn(!triggers.length), width: "100%" }} disabled={!triggers.length} onClick={() => setStep("story")}>
+                    继续 →
+                  </button>
                 </div>
               )}
 
+              {/* ── STORY ── */}
               {step === "story" && (
                 <div className="fadeUp">
                   <div style={card}>
-                    <span style={lbl}>第二步：跟 DD 说说发生了什么？</span>
-                    <p style={{ color: C.muted, fontSize: 14, lineHeight: 1.9, margin: "0 0 14px" }}>不用整理思路，想到什么就写什么。<br/>DD 只会倾听，不会评判。</p>
-                    <textarea value={story} onChange={e => setStory(e.target.value)}
-                      placeholder="比如：开会时被打断了好几次，说了什么没有人理我，后来我……"
-                      rows={6} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, color: C.text, fontSize: 15, lineHeight: 1.9, resize: "none" }}
-                      onFocus={e => e.target.style.borderColor = "rgba(124,58,237,0.5)"}
-                      onBlur={e => e.target.style.borderColor = C.border} />
-                    <div style={{ fontSize: 12, color: C.dimmer, marginTop: 8, textAlign: "right" }}>{story.length > 0 ? `${story.length} 字` : "也可以跳过"}</div>
+                    <span style={sectionLabel}>第二步：跟 DD 说说，发生了什么？</span>
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 14 }}>
+                      <DDAvatar size={32} />
+                      <div style={{ background: "var(--purple-dim)", border: "1px solid var(--border2)", borderRadius: "4px 14px 14px 14px", padding: "10px 14px", flex: 1 }}>
+                        <p style={{ color: "var(--text2)", fontSize: 13, lineHeight: 1.8, margin: 0 }}>不用整理思路，想到什么就写什么。<br />DD 只会倾听，不会评判你。</p>
+                      </div>
+                    </div>
+                    <textarea
+                      value={story}
+                      onChange={e => setStory(e.target.value)}
+                      placeholder="比如：开会时被打断了好几次，说了什么没人理我，我感觉自己消失了……"
+                      rows={6}
+                      style={{
+                        width: "100%", background: "rgba(255,255,255,0.9)",
+                        border: "1.5px solid var(--border2)", borderRadius: 14,
+                        padding: "14px 16px", color: "var(--text)", fontSize: 15, lineHeight: 1.9, resize: "none",
+                        transition: "border-color 0.2s",
+                      }}
+                      onFocus={e => e.target.style.borderColor = "var(--purple-light)"}
+                      onBlur={e => e.target.style.borderColor = "var(--border2)"}
+                    />
+                    <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8, textAlign: "right" }}>
+                      {story.length > 0 ? `${story.length} 字` : "也可以跳过，直接继续"}
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <button style={pBtn(false)} onClick={() => setStep("intensity")}>{story.trim() ? "写完了，继续 →" : "跳过，继续 →"}</button>
+                  <div className="btn-row" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button style={{ ...pBtn(false), flex: 1 }} onClick={() => setStep("intensity")}>
+                      {story.trim() ? "写完了，继续 →" : "跳过，继续 →"}
+                    </button>
                     <button style={gBtn} onClick={() => setStep("trigger")}>← 返回</button>
                   </div>
                 </div>
               )}
 
+              {/* ── INTENSITY ── */}
               {step === "intensity" && (
                 <div className="fadeUp">
                   <div style={card}>
-                    <span style={lbl}>第三步：此刻的程度？</span>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <span style={sectionLabel}>第三步：此刻的崩溃程度？</span>
+                    <div className="intensity-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                       {INTENSITY.map(i => {
                         const sel = intensity === i.value;
-                        return <button key={i.value} onClick={() => setIntensity(i.value)} style={{ background: sel ? "rgba(124,58,237,0.18)" : "rgba(255,255,255,0.03)", border: `1px solid ${sel ? "rgba(124,58,237,0.5)" : C.border}`, borderRadius: 12, padding: "15px 18px", color: sel ? "#ddd6fe" : C.muted, fontSize: 14, textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}>
-                          <div style={{ display: "flex", gap: 4 }}>{[1,2,3,4].map(d => <div key={d} style={{ width: 7, height: 7, borderRadius: "50%", background: d <= i.value ? (sel ? C.purple : C.muted) : "rgba(255,255,255,0.1)" }} />)}</div>
-                          {i.label}
-                        </button>;
+                        return (
+                          <button key={i.value} onClick={() => setIntensity(i.value)} style={{
+                            background: sel ? "linear-gradient(135deg, rgba(155,126,200,0.15), rgba(232,160,160,0.1))" : "rgba(255,255,255,0.8)",
+                            border: `1.5px solid ${sel ? "var(--purple-light)" : "var(--border2)"}`,
+                            borderRadius: 12, padding: "14px 16px",
+                            color: sel ? "var(--purple)" : "var(--text2)", fontSize: 14, fontWeight: sel ? 500 : 400,
+                            textAlign: "left", display: "flex", alignItems: "center", gap: 12,
+                            boxShadow: sel ? "0 2px 12px rgba(155,126,200,0.2)" : "none",
+                          }}>
+                            <div style={{ display: "flex", gap: 3 }}>
+                              {[1,2,3,4].map(d => (
+                                <div key={d} style={{ width: 8, height: 8, borderRadius: "50%", background: d <= i.value ? (sel ? "var(--purple)" : "var(--text3)") : "var(--border2)", transition: "background 0.2s" }} />
+                              ))}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 500 }}>{i.label}</div>
+                              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{i.desc}</div>
+                            </div>
+                          </button>
+                        );
                       })}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <button style={pBtn(!intensity)} disabled={!intensity} onClick={submit}>让 DD 帮我渡过这一关</button>
+                  <div className="btn-row" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <button style={{ ...pBtn(!intensity), flex: 1 }} disabled={!intensity} onClick={submit}>
+                      让 DD 帮我分析 ✦
+                    </button>
                     <button style={gBtn} onClick={() => setStep("story")}>← 返回</button>
                   </div>
                 </div>
               )}
 
+              {/* ── RESULT ── */}
               {step === "result" && (
                 <div>
                   {loading && (
-                    <div className="fadeUp" style={{ paddingTop: 20 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <DDAvatar size={38} animated={true} />
-                        <p className="pulse" style={{ color: C.muted, fontSize: 14 }}>{loadingMsg}…</p>
+                    <div className="fadeUp" style={{ paddingTop: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                        <DDAvatar size={40} pulse={true} />
+                        <div>
+                          <p style={{ color: "var(--purple)", fontSize: 14, fontWeight: 500, animation: "pulse 1.8s ease-in-out infinite" }}>{loadingMsg}…</p>
+                          <p style={{ color: "var(--text3)", fontSize: 12, marginTop: 2 }}>DD 正在认真分析你的情况</p>
+                        </div>
                       </div>
+                      {/* Loading skeleton */}
+                      {[1,2,3].map(i => (
+                        <div key={i} style={{ height: 16, background: "linear-gradient(90deg, var(--border) 25%, var(--bg2) 50%, var(--border) 75%)", backgroundSize: "200% 100%", borderRadius: 8, marginBottom: 10, width: i === 3 ? "60%" : "100%", animation: "shimmer 1.5s infinite" }} />
+                      ))}
                     </div>
                   )}
+
                   {error && !loading && (
-                    <div style={{ ...card, borderColor: "rgba(239,68,68,0.3)" }}>
-                      <p style={{ color: "#f87171", fontSize: 14, margin: "0 0 14px" }}>{error}</p>
-                      <div style={{ display: "flex", gap: 12 }}>
-                        <button style={pBtn(false)} onClick={submit}>重试</button>
+                    <div style={{ ...card, borderColor: "rgba(232,100,100,0.3)", background: "rgba(255,240,240,0.8)" }}>
+                      <p style={{ color: "#c0392b", fontSize: 14, margin: "0 0 14px" }}>😔 {error}</p>
+                      <div className="btn-row" style={{ display: "flex", gap: 12 }}>
+                        <button style={{ ...pBtn(false) }} onClick={submit}>重试</button>
                         <button style={gBtn} onClick={reset}>重新开始</button>
                       </div>
                     </div>
                   )}
+
                   {!loading && !error && comfort && (
-                    <div className="fadeUp">
-                      <DDBubble text={comfort} speed={18} onDone={() => plan && setTimeout(() => setShowPlan(true), 700)} />
+                    <div>
+                      <DDBubble
+                        text={comfort}
+                        speed={20}
+                        onDone={() => plan && setTimeout(() => setShowPlan(true), 600)}
+                      />
+
                       {showPlan && plan && (
-                        <div style={{ animation: "fadeUp 0.7s ease" }}>
-                          <DDBubble text={plan} speed={14} onDone={() => setTimeout(() => setShowRecovery(true), 1000)} />
+                        <div style={{ animation: "fadeUp 0.6s ease" }}>
+                          <DDBubble
+                            text={plan}
+                            speed={15}
+                            onDone={() => setTimeout(() => setShowRecovery(true), 800)}
+                          />
                         </div>
                       )}
+
                       {showRecovery && (
-                        <div style={{ animation: "fadeUp 0.6s ease", marginLeft: 52 }}>
-                          <span style={{ ...lbl, marginBottom: 12 }}>DD 为你准备的恢复练习</span>
+                        <div style={{ marginLeft: 52, animation: "fadeUp 0.6s ease" }}>
+                          <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.15em", fontWeight: 500, marginBottom: 14, textTransform: "uppercase" }}>DD 为你准备的恢复练习</div>
                           <RecoveryJourney intensity={intensity} />
                         </div>
                       )}
+
                       {showPlan && (
-                        <div style={{ display: "flex", gap: 12, marginTop: 20, marginLeft: 52 }}>
-                          <button style={pBtn(false)} onClick={reset}>再次找 DD 倾诉</button>
+                        <div className="btn-row fadeUp" style={{ display: "flex", gap: 12, marginTop: 20, marginLeft: 52 }}>
+                          <button style={{ ...pBtn(false) }} onClick={reset}>再次找 DD 倾诉</button>
                           <button style={gBtn} onClick={() => setStep("welcome")}>回到首页</button>
                         </div>
                       )}
@@ -414,23 +708,31 @@
                 </div>
               )}
 
+              {/* ── LOGS ── */}
               {step === "logs" && (
                 <div className="fadeUp">
-                  <h2 style={{ fontSize: 22, fontWeight: 400, color: "#ede9fe", margin: "0 0 22px" }}>我的记录</h2>
-                  {logs.map((log, i) => (
-                    <div key={i} style={{ ...card, marginBottom: 10 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                        <span style={{ fontSize: 12, color: C.dimmer }}>{log.time}</span>
-                        <div style={{ display: "flex", gap: 4 }}>{[1,2,3,4].map(d => <div key={d} style={{ width: 6, height: 6, borderRadius: "50%", background: d <= log.intensity ? C.purple : "rgba(255,255,255,0.08)" }} />)}</div>
+                  <h2 style={{ fontSize: 20, fontWeight: 400, color: "var(--text)", margin: "0 0 20px", fontFamily: "'Noto Serif SC', serif" }}>我的情绪记录</h2>
+                  {logs.length === 0 ? (
+                    <p style={{ color: "var(--text3)", fontSize: 14 }}>还没有记录</p>
+                  ) : logs.map((log, i) => (
+                    <div key={i} style={{ ...card, marginBottom: 10, padding: "16px 20px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <span style={{ fontSize: 12, color: "var(--text3)" }}>{log.time}</span>
+                        <div style={{ display: "flex", gap: 3 }}>
+                          {[1,2,3,4].map(d => (
+                            <div key={d} style={{ width: 6, height: 6, borderRadius: "50%", background: d <= log.intensity ? "var(--purple)" : "var(--border2)" }} />
+                          ))}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 13, color: C.muted, marginBottom: log.story ? 5 : 0 }}>{log.triggers}</div>
-                      {log.story && <div style={{ fontSize: 12, color: C.dimmer, fontStyle: "italic" }}>"{log.story}"</div>}
+                      <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: log.story ? 6 : 0, fontWeight: 500 }}>{log.triggers}</div>
+                      {log.story && <div style={{ fontSize: 12, color: "var(--text3)", fontStyle: "italic" }}>"{log.story}"</div>}
                     </div>
                   ))}
+                  <button style={gBtn} onClick={() => setStep("welcome")}>← 返回首页</button>
                 </div>
               )}
 
-              <div ref={bottomRef} />
+              <div ref={bottomRef} style={{ height: 40 }} />
             </div>
           </div>
         </div>
